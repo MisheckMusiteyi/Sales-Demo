@@ -62,6 +62,10 @@ st.set_page_config(page_title="Sales Dashboard", layout="centered")
 st.title("📊 Sales per Month (from Google Sheets)")
 st.markdown("Data loaded from Google Sheets: `Sales` sheet, columns `Month` and `Sales`")
 
+# Manual refresh button
+if st.button('🔄 Refresh Data'):
+    st.cache_data.clear()
+    st.rerun()
 with st.spinner("Fetching latest data..."):
     data = load_data()
 
