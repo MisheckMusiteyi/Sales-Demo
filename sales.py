@@ -59,7 +59,7 @@ def load_data():
 
 # ---------- Streamlit UI ----------
 st.set_page_config(page_title="Sales Dashboard", layout="centered")
-st.title("📊 Sales per Month (from Google Sheets)")
+st.title("Monthly Sales Analysis")
 st.markdown("Data loaded from Google Sheets: `Sales` sheet, columns `Month` and `Sales`")
 
 # Manual refresh button
