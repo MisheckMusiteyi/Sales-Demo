@@ -92,7 +92,10 @@ def load_data():
 st.set_page_config(page_title="Sales Dashboard", layout="centered")
 st.title("📊 Monthly Sales & Growth Analysis")
 st.markdown("Data loaded from Google Sheets: `Sales` sheet with **Date** and **Sales** columns.")
-
+# Manual refresh button
+if st.button('🔄 Refresh Data'):
+    st.cache_data.clear()
+    st.rerun()
 with st.spinner("Fetching latest data..."):
     data = load_data()
 
