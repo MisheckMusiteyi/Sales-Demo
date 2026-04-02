@@ -175,6 +175,24 @@ def display_kpi_card(label, value, is_red=False, sub_text=""):
     </div>
     """, unsafe_allow_html=True)
 
+def find_column(df, possible_names):
+    """Find a column in dataframe by trying multiple possible names."""
+    if df.empty:
+        return None
+    
+    # Clean column names: strip whitespace and convert to lowercase for matching
+    df.columns = [str(col).strip() for col in df.columns]
+    
+    for name in possible_names:
+        # Try exact match first
+        if name in df.columns:
+            return name
+        # Try case-insensitive match
+        for col in df.columns:
+            if col.lower() == name.lower():
+                return col
+    return None
+
 def safe_numeric_convert(series):
     """Safely convert a series to numeric, handling empty strings and errors."""
     if series is None or len(series) == 0:
@@ -223,21 +241,33 @@ def analyze_real_estate(data):
     total_sales_revenue = 0
     units_sold = 0
     
-    if not rental_income.empty and 'Total Rental Income' in rental_income.columns:
-        total_rental_income = safe_numeric_convert(rental_income['Total Rental Income']).sum()
+    # Find Rental Income column
+    if not rental_income.empty:
+        income_col = find_column(rental_income, ['Total Rental Income', 'Rental Income', 'Income', 'Amount'])
+        if income_col:
+            total_rental_income = safe_numeric_convert(rental_income[income_col]).sum()
     
-    if not rental_expenses.empty and 'Expense Amount' in rental_expenses.columns:
-        total_rental_expenses = safe_numeric_convert(rental_expenses['Expense Amount']).sum()
+    # Find Rental Expenses column
+    if not rental_expenses.empty:
+        expense_col = find_column(rental_expenses, ['Expense Amount', 'Amount', 'Expense', 'Cost'])
+        if expense_col:
+            total_rental_expenses = safe_numeric_convert(rental_expenses[expense_col]).sum()
     
     net_rental_income = total_rental_income - total_rental_expenses
     
+    # Find Sales columns
     if not sales.empty:
-        if 'Gross Profit' in sales.columns:
-            total_sales_profit = safe_numeric_convert(sales['Gross Profit']).sum()
-        if 'Total Sales Revenue' in sales.columns:
-            total_sales_revenue = safe_numeric_convert(sales['Total Sales Revenue']).sum()
-        if 'Units Sold' in sales.columns:
-            units_sold = safe_numeric_convert(sales['Units Sold']).sum()
+        profit_col = find_column(sales, ['Gross Profit', 'Profit', 'Total Profit'])
+        if profit_col:
+            total_sales_profit = safe_numeric_convert(sales[profit_col]).sum()
+        
+        revenue_col = find_column(sales, ['Total Sales Revenue', 'Sales Revenue', 'Revenue', 'Total Sales'])
+        if revenue_col:
+            total_sales_revenue = safe_numeric_convert(sales[revenue_col]).sum()
+        
+        units_col = find_column(sales, ['Units Sold', 'Units', 'Quantity', 'Qty'])
+        if units_col:
+            units_sold = safe_numeric_convert(sales[units_col]).sum()
     
     total_real_estate_profit = net_rental_income + total_sales_profit
     
@@ -265,17 +295,26 @@ def analyze_mining(data):
     total_equipment = 0
     total_revenue = 0
     
-    if not capital.empty and 'Amount' in capital.columns:
-        total_capital = safe_numeric_convert(capital['Amount']).sum()
+    # Find Amount column in each sheet
+    if not capital.empty:
+        amount_col = find_column(capital, ['Amount', 'Capital', 'Investment', 'Amount Invested'])
+        if amount_col:
+            total_capital = safe_numeric_convert(capital[amount_col]).sum()
     
-    if not expenses.empty and 'Amount' in expenses.columns:
-        total_expenses = safe_numeric_convert(expenses['Amount']).sum()
+    if not expenses.empty:
+        amount_col = find_column(expenses, ['Amount', 'Expense Amount', 'Cost'])
+        if amount_col:
+            total_expenses = safe_numeric_convert(expenses[amount_col]).sum()
     
-    if not equipment.empty and 'Amount' in equipment.columns:
-        total_equipment = safe_numeric_convert(equipment['Amount']).sum()
+    if not equipment.empty:
+        amount_col = find_column(equipment, ['Amount', 'Purchase Amount', 'Cost'])
+        if amount_col:
+            total_equipment = safe_numeric_convert(equipment[amount_col]).sum()
     
-    if not revenue.empty and 'Amount' in revenue.columns:
-        total_revenue = safe_numeric_convert(revenue['Amount']).sum()
+    if not revenue.empty:
+        amount_col = find_column(revenue, ['Amount', 'Revenue', 'Income'])
+        if amount_col:
+            total_revenue = safe_numeric_convert(revenue[amount_col]).sum()
     
     total_costs = total_expenses + total_equipment
     net_profit = total_revenue - total_costs
