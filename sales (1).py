@@ -174,6 +174,12 @@ def display_kpi_card(label, value, is_red=False, sub_text=""):
     </div>
     """, unsafe_allow_html=True)
 
+def safe_numeric_convert(series):
+    """Safely convert a series to numeric, handling errors."""
+    if series is None or len(series) == 0:
+        return pd.Series([0])
+    return pd.to_numeric(series.astype(str).str.replace(',', '').str.replace('$', ''), errors='coerce').fillna(0)
+
 def format_currency(value):
     """Format number as currency."""
     try:
@@ -197,30 +203,28 @@ def analyze_real_estate(data):
     rental_expenses = data.get('RealEstate_Rental_Expenses', pd.DataFrame())
     sales = data.get('RealEstate_Sales', pd.DataFrame())
     
-    # Convert to numeric
-    if not rental_income.empty:
-        rental_income['Total Rental Income'] = pd.to_numeric(rental_income['Total Rental Income'], errors='coerce')
-        total_rental_income = rental_income['Total Rental Income'].sum()
-    else:
-        total_rental_income = 0
+    # Convert to numeric safely
+    total_rental_income = 0
+    total_rental_expenses = 0
+    total_sales_profit = 0
+    total_sales_revenue = 0
+    units_sold = 0
     
-    if not rental_expenses.empty:
-        rental_expenses['Expense Amount'] = pd.to_numeric(rental_expenses['Expense Amount'], errors='coerce')
-        total_rental_expenses = rental_expenses['Expense Amount'].sum()
-    else:
-        total_rental_expenses = 0
+    if not rental_income.empty and 'Total Rental Income' in rental_income.columns:
+        total_rental_income = safe_numeric_convert(rental_income['Total Rental Income']).sum()
+    
+    if not rental_expenses.empty and 'Expense Amount' in rental_expenses.columns:
+        total_rental_expenses = safe_numeric_convert(rental_expenses['Expense Amount']).sum()
     
     net_rental_income = total_rental_income - total_rental_expenses
     
     if not sales.empty:
-        sales['Gross Profit'] = pd.to_numeric(sales['Gross Profit'], errors='coerce')
-        total_sales_profit = sales['Gross Profit'].sum()
-        total_sales_revenue = pd.to_numeric(sales['Total Sales Revenue'], errors='coerce').sum()
-        units_sold = sales['Units Sold'].astype(float).sum() if 'Units Sold' in sales.columns else 0
-    else:
-        total_sales_profit = 0
-        total_sales_revenue = 0
-        units_sold = 0
+        if 'Gross Profit' in sales.columns:
+            total_sales_profit = safe_numeric_convert(sales['Gross Profit']).sum()
+        if 'Total Sales Revenue' in sales.columns:
+            total_sales_revenue = safe_numeric_convert(sales['Total Sales Revenue']).sum()
+        if 'Units Sold' in sales.columns:
+            units_sold = safe_numeric_convert(sales['Units Sold']).sum()
     
     total_real_estate_profit = net_rental_income + total_sales_profit
     
@@ -242,11 +246,23 @@ def analyze_mining(data):
     equipment = data.get('Mining_Equipment_Purchase', pd.DataFrame())
     revenue = data.get('Mining_Revenue', pd.DataFrame())
     
-    # Convert to numeric
-    total_capital = capital['Amount'].astype(float).sum() if not capital.empty else 0
-    total_expenses = expenses['Amount'].astype(float).sum() if not expenses.empty else 0
-    total_equipment = equipment['Amount'].astype(float).sum() if not equipment.empty else 0
-    total_revenue = revenue['Amount'].astype(float).sum() if not revenue.empty else 0
+    # Convert to numeric safely
+    total_capital = 0
+    total_expenses = 0
+    total_equipment = 0
+    total_revenue = 0
+    
+    if not capital.empty and 'Amount' in capital.columns:
+        total_capital = safe_numeric_convert(capital['Amount']).sum()
+    
+    if not expenses.empty and 'Amount' in expenses.columns:
+        total_expenses = safe_numeric_convert(expenses['Amount']).sum()
+    
+    if not equipment.empty and 'Amount' in equipment.columns:
+        total_equipment = safe_numeric_convert(equipment['Amount']).sum()
+    
+    if not revenue.empty and 'Amount' in revenue.columns:
+        total_revenue = safe_numeric_convert(revenue['Amount']).sum()
     
     total_costs = total_expenses + total_equipment
     net_profit = total_revenue - total_costs
