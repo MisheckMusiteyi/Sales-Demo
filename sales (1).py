@@ -4,6 +4,7 @@
 import streamlit as st
 import pandas as pd
 import json
+import numpy as np
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from datetime import datetime
@@ -142,7 +143,7 @@ def get_sheet_data(sheet_range):
             range=sheet_range
         ).execute()
         values = result.get('values', [])
-        if not values:
+        if not values or len(values) <= 1:
             return pd.DataFrame()
         header = values[0]
         data = values[1:]
@@ -175,10 +176,22 @@ def display_kpi_card(label, value, is_red=False, sub_text=""):
     """, unsafe_allow_html=True)
 
 def safe_numeric_convert(series):
-    """Safely convert a series to numeric, handling errors."""
+    """Safely convert a series to numeric, handling empty strings and errors."""
     if series is None or len(series) == 0:
         return pd.Series([0])
-    return pd.to_numeric(series.astype(str).str.replace(',', '').str.replace('$', ''), errors='coerce').fillna(0)
+    
+    # Convert to string first, then clean
+    cleaned = series.astype(str).str.strip()
+    # Replace empty strings and 'nan' with 0
+    cleaned = cleaned.replace(['', 'nan', 'NaN', 'None'], '0')
+    # Remove commas and dollar signs
+    cleaned = cleaned.str.replace(',', '', regex=False)
+    cleaned = cleaned.str.replace('$', '', regex=False)
+    # Convert to numeric, coercing errors to NaN
+    numeric = pd.to_numeric(cleaned, errors='coerce')
+    # Fill NaN with 0
+    numeric = numeric.fillna(0)
+    return numeric
 
 def format_currency(value):
     """Format number as currency."""
