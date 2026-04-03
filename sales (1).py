@@ -9,10 +9,11 @@ from googleapiclient.discovery import build
 
 # ---------- Page Configuration ----------
 st.set_page_config(
-    page_title="Investment Portfolio Dashboard",
+    #page_title="Portfolio Dashboard",
     layout="wide",
-    page_icon="📊"
+    page_icon=""
 )
+st.markdown("<h1 style='color: #ff0000;'>Portfolio Dashboard</h1>", unsafe_allow_html=True)
 
 # ---------- Custom CSS for Dark Theme with Red Accents ----------
 st.markdown("""
