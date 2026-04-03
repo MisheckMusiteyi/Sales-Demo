@@ -4,10 +4,8 @@
 import streamlit as st
 import pandas as pd
 import json
-import numpy as np
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from datetime import datetime
 
 # ---------- Page Configuration ----------
 st.set_page_config(
@@ -175,41 +173,18 @@ def display_kpi_card(label, value, is_red=False, sub_text=""):
     </div>
     """, unsafe_allow_html=True)
 
-def find_column(df, possible_names):
-    """Find a column in dataframe by trying multiple possible names."""
-    if df.empty:
-        return None
-    
-    # Clean column names: strip whitespace and convert to lowercase for matching
-    df.columns = [str(col).strip() for col in df.columns]
-    
-    for name in possible_names:
-        # Try exact match first
-        if name in df.columns:
-            return name
-        # Try case-insensitive match
-        for col in df.columns:
-            if col.lower() == name.lower():
-                return col
-    return None
-
-def safe_numeric_convert(series):
-    """Safely convert a series to numeric, handling empty strings and errors."""
-    if series is None or len(series) == 0:
-        return pd.Series([0])
-    
-    # Convert to string first, then clean
-    cleaned = series.astype(str).str.strip()
-    # Replace empty strings and 'nan' with 0
-    cleaned = cleaned.replace(['', 'nan', 'NaN', 'None'], '0')
-    # Remove commas and dollar signs
+def safe_to_numeric(df, col_name):
+    """Safely convert a column to numeric, handling empty strings and errors."""
+    if df.empty or col_name not in df.columns:
+        return 0
+    # Convert to string, strip whitespace, replace empty strings with '0'
+    cleaned = df[col_name].astype(str).str.strip()
+    cleaned = cleaned.replace(['', 'nan', 'NaN', 'None', 'null'], '0')
+    # Remove commas and dollar signs if present
     cleaned = cleaned.str.replace(',', '', regex=False)
     cleaned = cleaned.str.replace('$', '', regex=False)
-    # Convert to numeric, coercing errors to NaN
-    numeric = pd.to_numeric(cleaned, errors='coerce')
-    # Fill NaN with 0
-    numeric = numeric.fillna(0)
-    return numeric
+    # Convert to numeric, coercing errors to NaN, then fill with 0
+    return pd.to_numeric(cleaned, errors='coerce').fillna(0).sum()
 
 def format_currency(value):
     """Format number as currency."""
@@ -229,45 +204,23 @@ def format_percentage(value):
 
 # ---------- Real Estate Analysis ----------
 def analyze_real_estate(data):
-    """Calculate Real Estate KPIs."""
+    """Calculate Real Estate KPIs with safe data type conversion."""
     rental_income = data.get('RealEstate_Rental_Income', pd.DataFrame())
     rental_expenses = data.get('RealEstate_Rental_Expenses', pd.DataFrame())
     sales = data.get('RealEstate_Sales', pd.DataFrame())
     
-    # Convert to numeric safely
-    total_rental_income = 0
-    total_rental_expenses = 0
-    total_sales_profit = 0
-    total_sales_revenue = 0
-    units_sold = 0
+    # Calculate rental income
+    total_rental_income = safe_to_numeric(rental_income, 'Total Rental Income')
     
-    # Find Rental Income column
-    if not rental_income.empty:
-        income_col = find_column(rental_income, ['Total Rental Income', 'Rental Income', 'Income', 'Amount'])
-        if income_col:
-            total_rental_income = safe_numeric_convert(rental_income[income_col]).sum()
-    
-    # Find Rental Expenses column
-    if not rental_expenses.empty:
-        expense_col = find_column(rental_expenses, ['Expense Amount', 'Amount', 'Expense', 'Cost'])
-        if expense_col:
-            total_rental_expenses = safe_numeric_convert(rental_expenses[expense_col]).sum()
+    # Calculate rental expenses
+    total_rental_expenses = safe_to_numeric(rental_expenses, 'Expense Amount')
     
     net_rental_income = total_rental_income - total_rental_expenses
     
-    # Find Sales columns
-    if not sales.empty:
-        profit_col = find_column(sales, ['Gross Profit', 'Profit', 'Total Profit'])
-        if profit_col:
-            total_sales_profit = safe_numeric_convert(sales[profit_col]).sum()
-        
-        revenue_col = find_column(sales, ['Total Sales Revenue', 'Sales Revenue', 'Revenue', 'Total Sales'])
-        if revenue_col:
-            total_sales_revenue = safe_numeric_convert(sales[revenue_col]).sum()
-        
-        units_col = find_column(sales, ['Units Sold', 'Units', 'Quantity', 'Qty'])
-        if units_col:
-            units_sold = safe_numeric_convert(sales[units_col]).sum()
+    # Calculate sales metrics
+    total_sales_profit = safe_to_numeric(sales, 'Gross Profit')
+    total_sales_revenue = safe_to_numeric(sales, 'Total Sales Revenue')
+    units_sold = safe_to_numeric(sales, 'Units Sold')
     
     total_real_estate_profit = net_rental_income + total_sales_profit
     
@@ -283,38 +236,16 @@ def analyze_real_estate(data):
 
 # ---------- Mining Analysis ----------
 def analyze_mining(data):
-    """Calculate Mining KPIs."""
+    """Calculate Mining KPIs with safe data type conversion."""
     capital = data.get('Mining_Capital_Invested', pd.DataFrame())
     expenses = data.get('Mining_Expenses', pd.DataFrame())
     equipment = data.get('Mining_Equipment_Purchase', pd.DataFrame())
     revenue = data.get('Mining_Revenue', pd.DataFrame())
     
-    # Convert to numeric safely
-    total_capital = 0
-    total_expenses = 0
-    total_equipment = 0
-    total_revenue = 0
-    
-    # Find Amount column in each sheet
-    if not capital.empty:
-        amount_col = find_column(capital, ['Amount', 'Capital', 'Investment', 'Amount Invested'])
-        if amount_col:
-            total_capital = safe_numeric_convert(capital[amount_col]).sum()
-    
-    if not expenses.empty:
-        amount_col = find_column(expenses, ['Amount', 'Expense Amount', 'Cost'])
-        if amount_col:
-            total_expenses = safe_numeric_convert(expenses[amount_col]).sum()
-    
-    if not equipment.empty:
-        amount_col = find_column(equipment, ['Amount', 'Purchase Amount', 'Cost'])
-        if amount_col:
-            total_equipment = safe_numeric_convert(equipment[amount_col]).sum()
-    
-    if not revenue.empty:
-        amount_col = find_column(revenue, ['Amount', 'Revenue', 'Income'])
-        if amount_col:
-            total_revenue = safe_numeric_convert(revenue[amount_col]).sum()
+    total_capital = safe_to_numeric(capital, 'Amount')
+    total_expenses = safe_to_numeric(expenses, 'Amount')
+    total_equipment = safe_to_numeric(equipment, 'Amount')
+    total_revenue = safe_to_numeric(revenue, 'Amount')
     
     total_costs = total_expenses + total_equipment
     net_profit = total_revenue - total_costs
