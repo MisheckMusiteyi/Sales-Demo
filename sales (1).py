@@ -278,7 +278,7 @@ def analyze_overall(real_estate_kpis, mining_kpis):
 
 # ---------- Main Dashboard UI ----------
 # Red title using HTML
-st.markdown("<h1 style='color: #ff0000;'>🏢 Portfolio Dashboard</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='color: #ff0000;'>Portfolio Dashboard</h1>", unsafe_allow_html=True)
 st.markdown("---")
 
 # Load all data
