@@ -6,13 +6,11 @@ import pandas as pd
 import json
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from datetime import datetime
 
 # ---------- Page Configuration ----------
 st.set_page_config(
-    page_title="Investment Portfolio Dashboard",
     layout="wide",
-    page_icon="📊"
+    page_icon=""
 )
 
 # ---------- Custom CSS for Dark Theme with Red Accents ----------
@@ -98,7 +96,7 @@ st.markdown("""
     }
     
     /* Headers */
-    h1, h2, h3 {
+    h2, h3 {
         color: #ffffff !important;
     }
     
@@ -142,7 +140,7 @@ def get_sheet_data(sheet_range):
             range=sheet_range
         ).execute()
         values = result.get('values', [])
-        if not values:
+        if not values or len(values) <= 1:
             return pd.DataFrame()
         header = values[0]
         data = values[1:]
@@ -174,6 +172,19 @@ def display_kpi_card(label, value, is_red=False, sub_text=""):
     </div>
     """, unsafe_allow_html=True)
 
+def safe_to_numeric(df, col_name):
+    """Safely convert a column to numeric, handling empty strings and errors."""
+    if df.empty or col_name not in df.columns:
+        return 0
+    # Convert to string, strip whitespace, replace empty strings with '0'
+    cleaned = df[col_name].astype(str).str.strip()
+    cleaned = cleaned.replace(['', 'nan', 'NaN', 'None', 'null'], '0')
+    # Remove commas and dollar signs if present
+    cleaned = cleaned.str.replace(',', '', regex=False)
+    cleaned = cleaned.str.replace('$', '', regex=False)
+    # Convert to numeric, coercing errors to NaN, then fill with 0
+    return pd.to_numeric(cleaned, errors='coerce').fillna(0).sum()
+
 def format_currency(value):
     """Format number as currency."""
     try:
@@ -192,35 +203,23 @@ def format_percentage(value):
 
 # ---------- Real Estate Analysis ----------
 def analyze_real_estate(data):
-    """Calculate Real Estate KPIs."""
+    """Calculate Real Estate KPIs with safe data type conversion."""
     rental_income = data.get('RealEstate_Rental_Income', pd.DataFrame())
     rental_expenses = data.get('RealEstate_Rental_Expenses', pd.DataFrame())
     sales = data.get('RealEstate_Sales', pd.DataFrame())
     
-    # Convert to numeric
-    if not rental_income.empty:
-        rental_income['Total Rental Income'] = pd.to_numeric(rental_income['Total Rental Income'], errors='coerce')
-        total_rental_income = rental_income['Total Rental Income'].sum()
-    else:
-        total_rental_income = 0
+    # Calculate rental income
+    total_rental_income = safe_to_numeric(rental_income, 'Total Rental Income')
     
-    if not rental_expenses.empty:
-        rental_expenses['Expense Amount'] = pd.to_numeric(rental_expenses['Expense Amount'], errors='coerce')
-        total_rental_expenses = rental_expenses['Expense Amount'].sum()
-    else:
-        total_rental_expenses = 0
+    # Calculate rental expenses
+    total_rental_expenses = safe_to_numeric(rental_expenses, 'Expense Amount')
     
     net_rental_income = total_rental_income - total_rental_expenses
     
-    if not sales.empty:
-        sales['Gross Profit'] = pd.to_numeric(sales['Gross Profit'], errors='coerce')
-        total_sales_profit = sales['Gross Profit'].sum()
-        total_sales_revenue = pd.to_numeric(sales['Total Sales Revenue'], errors='coerce').sum()
-        units_sold = sales['Units Sold'].astype(float).sum() if 'Units Sold' in sales.columns else 0
-    else:
-        total_sales_profit = 0
-        total_sales_revenue = 0
-        units_sold = 0
+    # Calculate sales metrics
+    total_sales_profit = safe_to_numeric(sales, 'Gross Profit')
+    total_sales_revenue = safe_to_numeric(sales, 'Total Sales Revenue')
+    units_sold = safe_to_numeric(sales, 'Units Sold')
     
     total_real_estate_profit = net_rental_income + total_sales_profit
     
@@ -236,17 +235,16 @@ def analyze_real_estate(data):
 
 # ---------- Mining Analysis ----------
 def analyze_mining(data):
-    """Calculate Mining KPIs."""
+    """Calculate Mining KPIs with safe data type conversion."""
     capital = data.get('Mining_Capital_Invested', pd.DataFrame())
     expenses = data.get('Mining_Expenses', pd.DataFrame())
     equipment = data.get('Mining_Equipment_Purchase', pd.DataFrame())
     revenue = data.get('Mining_Revenue', pd.DataFrame())
     
-    # Convert to numeric
-    total_capital = capital['Amount'].astype(float).sum() if not capital.empty else 0
-    total_expenses = expenses['Amount'].astype(float).sum() if not expenses.empty else 0
-    total_equipment = equipment['Amount'].astype(float).sum() if not equipment.empty else 0
-    total_revenue = revenue['Amount'].astype(float).sum() if not revenue.empty else 0
+    total_capital = safe_to_numeric(capital, 'Amount')
+    total_expenses = safe_to_numeric(expenses, 'Amount')
+    total_equipment = safe_to_numeric(equipment, 'Amount')
+    total_revenue = safe_to_numeric(revenue, 'Amount')
     
     total_costs = total_expenses + total_equipment
     net_profit = total_revenue - total_costs
@@ -279,7 +277,8 @@ def analyze_overall(real_estate_kpis, mining_kpis):
     }
 
 # ---------- Main Dashboard UI ----------
-st.title("🏢 Investment Portfolio Dashboard")
+# Red title using HTML
+st.markdown("<h1 style='color: #ff0000;'>Portfolio Dashboard</h1>", unsafe_allow_html=True)
 st.markdown("---")
 
 # Load all data
